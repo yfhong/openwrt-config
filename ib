@@ -3,47 +3,61 @@ set -e
 
 # profiles and targets
 mw4530r='mercury_mw4530r-v1 ath79/generic'
-wdr4300='tplink_tl-wdr4300-v1 ath79/generic'
-wg3526='zbtlink_zbt-wg3526-16m ramips/mt7621'
-x86='x86/64'
+glb1300='glinet_gl-b1300 ipq40xx/generic'
+# wired router
+x86_64='x86/64'
+x86='x86/generic'
+# travel router
+dir505='dlink_dir-505 ath79/generic'
 
 # packages
-common='diffutils iwinfo wpa-cli -odhcpd-ipv6only'
-aircrack='aircrack-ng airmon-ng grep kmod-tun pciutils procps-ng procps-ng-ps usbutils'
-asterisk="$asterisk_pjsip"
-asterisk_pjsip='asterisk15 asterisk15-bridge-simple asterisk15-pjsip asterisk15-res-rtp-asterisk asterisk15-res-srtp'
-asterisk_sip='asterisk15 asterisk15-chan-sip asterisk15-res-rtp-asterisk asterisk15-res-srtp'
+wireless_basic='iwinfo wpa-cli iw -iw-full'
+wireless='iwinfo wpa-cli -iw iw-full'
+
+wpad_basic='wpad-basic-wolfssl -wpad-mini -wpad-basic -wpad-wolfssl'
+wpad='-wpad-basic-wolfssl -wpad-mini -wpad-basic wpad-wolfssl'
+mesh='-wpad-basic-wolfssl -wpad-mini -wpad-basic wpad-mesh-wolfssl'
+
+no_wireless='-iwinfo -wpa-cli -iw -iw-full -wpad-basic-wolfssl -wpad-mini -wpad-basic -wpad-wolfssl -wpad -wpad-mesh-wolfssl'
+
+no_ppp='-ppp -ppp-mode-pppoe'
+no_ipv6='-ip6tables -odhcp6c -kmod-ipv6 -kmod-ip6tables -odhcpd-ipv6only'
+
+common="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $wireless"
+common_tiny="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq $wireless_basic $no_ppp $no_ipv6"
+common_wired="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $no_wireless"
+
+utils='diffutils adblock curl ca-bundle netcat tcpdump iputils-arping arp-scan'
+sa="watchcat nlbwmon $utils"
+mactelnet='mac-telnet-client mac-telnet-discover'
+security='nmap-ssl'
+sa_adv="$sa $mactelnet $security"
+
 ddns='ca-bundle ddns-scripts'
-dnsmasq='dnsmasq-full -dnsmasq'
-freeradius='freeradius3 freeradius3-mod-always freeradius3-mod-attr-filter freeradius3-mod-eap freeradius3-mod-eap-mschapv2 freeradius3-mod-eap-peap freeradius3-mod-eap-tls freeradius3-mod-files freeradius3-mod-mschap'
+
+shadowsocks='shadowsocks-libev-ss-rules stubby'
+gfw="$shadowsocks"
+
+vpn='wireguard-tools'
+
+routing='bird2 bird2c'
+
+# web interface
 hass='rpcd uhttpd-mod-ubus uhttpd'
 luci2='luci2-ui-base'
 luci='luci luci-theme-material'
 luci_zh='luci-i18n-base-zh-cn'
-mactelnet='mac-telnet-client mac-telnet-discover'
-mwan='ip-full kmod-macvlan mwan3'
-shadowsocks='shadowsocks-libev-ss-rules stubby'
-wpad='-wpad-basic-wolfssl wpad-wolfssl'
-yate='yate yate-mod-openssl yate-mod-regexroute yate-mod-regfile yate-mod-yrtpchan yate-mod-ysipchan'
-
-REPOS='src/gz azuwis https://azuwis.github.io/openwrt-binary-packages/{{ pkg_arch }}/azuwis'
 
 # profiles
-profiles=(wg3526_main wg3526_audit wg3526_iptv wg3526_luci wg3526_office wdr4300_main mw4530r_main mw4530r_iptv mw4530r_yate x86_main)
-wg3526_main="$wg3526 $common acme adblock curl $ddns $dnsmasq etherwake $freeradius $hass $mactelnet miniupnpd $shadowsocks sqm-scripts tcpdump vlmcsd wireguard $wpad"
-wg3526_audit="$wg3526 $aircrack arp-scan dsniff ettercap iputils-arping mdk3 netdiscover nmap-ssl tcpdump tmux"
-wg3526_iptv="$wg3526 $common curl $wpad rpcd uhttpd uhttpd-mod-ubus"
-wg3526_luci="$wg3526 $luci"
-wg3526_office="$wg3526 adblock avahi-nodbus-daemon curl $dnsmasq $shadowsocks $sqm vlmcsd wireguard ip-bridge lua libuci-lua"
-mw4530r_iptv="$mw4530r $common curl $wpad rpcd uhttpd uhttpd-mod-ubus"
-mw4530r_main="$mw4530r adblock curl $ddns $dnsmasq $freeradius $mactelnet miniupnpd nlbwmon $shadowsocks $sqm tcpdump vlmcsd watchcat wireguard $wpad"
-mw4530r_yate="$mw4530r adblock $yate $ddns $dnsmasq $freeradius miniupnpd $shadowsocks $sqm watchcat vlmcsd wireguard $wpad"
-wdr4300_main="$wdr4300"
-x86_main="$x86"
-x86_acme="$x86 acme acme-dnsapi luci luci-app-acme luci-app-uhttpd"
-x86_fwknopd="$x86 fwknopd luci luci-app-fwknopd"
-x86_luci2="$x86 luci2"
-x86_vuci="$x86 vuci"
+profiles=(mw4530r_basic mw4530r_main dir505_main x86_main x86_64_main)
+mw4530r_basic="$mw4530r $common_tiny $sa $ddns $gfw $vpn $wpad_basic"
+mw4530r_main="$mw4530r $common $sa $ddns $gfw $vpn $wpad"
+glb1300_main="$glb1300 $common $sa $ddns $gfw $vpn $wpad"
+# wired router.
+x86_main="$x86 $common_wired $sa_adv $ddns $gfw $vpn"
+x86_64_main="$x86_64 $common_wired $sa_adv $ddns $gfw $vpn"
+# travel router dir-505. dhcp wan + private wifi + vpn to office + gfw
+dir505_main="$dir505 $common_tiny curl ca-bundle netcat tcpdump $gfw $vpn $wpad_basic"
 
 build() {
     device="$1"
