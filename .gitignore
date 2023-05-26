@@ -3,3 +3,8 @@
 /files/tmp/
 /remote-999-test.sh
 /test
+.meta_setup
+bin/
+gpg/
+imagebuilder/
+usign/
