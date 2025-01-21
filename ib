@@ -37,7 +37,8 @@ common_wired="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $
 
 utils='diffutils adblock curl ca-bundle netcat tcpdump iputils-arping arp-scan'
 sa="watchcat nlbwmon $utils"
-sa_tiny="watchcat nlbwmon $utils -adblock -tcpdump -netcat -iputils-arping -arp-scan"
+#sa_tiny="watchcat nlbwmon $utils -adblock -tcpdump -netcat -iputils-arping -arp-scan"
+sa_tiny="watchcat nlbwmon"
 mactelnet='mac-telnet-client mac-telnet-discover'
 security='nmap-ssl'
 sa_adv="$sa $mactelnet $security"
@@ -65,15 +66,18 @@ luci_zh='luci-i18n-base-zh-cn'
 # profiles
 profiles=(mw4530r_basic mw4530r_basic_openssl mw4530r_main dir505_main dir505_main_openssl x86_main x86_64_main)
 mw4530r_basic="$mw4530r $common_tiny $sa $ddns $gfw $vpn $wpad_basic"
-mw4530r_basic_openssl="$mw4530r $common_tiny $sa $ddns $gfw $vpn $wpad_basic_openssl"
+#mw4530r_basic_openssl="$mw4530r $common_tiny $sa $ddns $gfw $vpn $wpad_basic_openssl -libustream-wolfssl libustream-openssl"
+mw4530r_basic_openssl="$mw4530r $common_tiny $sa_tiny $gfw $vpn $wpad_basic_openssl -libustream-wolfssl libustream-openssl"
 mw4530r_main="$mw4530r $common $sa $ddns $gfw $vpn $wpad"
 glb1300_main="$glb1300 $common $sa $ddns $gfw $vpn $wpad"
 # wired router.
 x86_main="$x86 $common_wired $sa_adv $ddns $gfw $vpn"
 x86_64_main="$x86_64 $common_wired $sa_adv $ddns $gfw $vpn"
 # travel router dir-505. dhcp wan + private wifi + vpn to office + gfw
-dir505_main="$dir505 $common_tiny curl ca-bundle netcat tcpdump $gfw $vpn $wpad_basic"
-dir505_main_openssl="$dir505 $common_tiny curl ca-bundle netcat tcpdump $gfw $vpn $wpad_basic_openssl"
+#dir505_main="$dir505 $common_tiny curl ca-bundle netcat tcpdump $gfw $vpn $wpad_basic"
+dir505_main="$dir505 $common_tiny $sa_tiny $gfw $vpn $wpad_basic"
+#dir505_main_openssl="$dir505 $common_tiny curl ca-bundle netcat tcpdump $gfw $vpn $wpad_basic_openssl"
+dir505_main_openssl="$dir505 $common_tiny diffutils curl ca-bundle $sa_tiny $gfw $vpn $wpad_basic_openssl"
 
 
 build() {
