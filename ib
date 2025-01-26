@@ -29,15 +29,16 @@ pkg_wireless='iwinfo wpa-cli -iw iw-full'
 pkg_wireless_basic='iwinfo wpa-cli iw -iw-full'
 
 # WPAD Packages
-pkg_wpad='wpad-wolfssl -wpad-basic-wolfssl -wpad-mini -wpad-basic'
-pkg_wpad_basic='wpad-basic-wolfssl -wpad-mini -wpad-basic -wpad-wolfssl'
-pkg_wpad_mesh='wpad-mesh-wolfssl -wpad-basic-wolfssl -wpad-mini -wpad-basic'
+pkg_wpad='wpad-wolfssl -wpad-mbedtls -wpad-basic-wolfssl -wpad-basic-mbedtls -wpad-mini -wpad-basic -wpad'
+pkg_wpad_basic='wpad-basic-wolfssl -wpad-basic-mbedtls -wpad-wolfssl -wpad-mbedtls -wpad-mini -wpad-basic -wpad'
+pkg_wpad_mesh='wpad-mesh-wolfssl -wpad-mesh-mbedtls -wpad-basic-wolfssl -wpad-basic-mbedtls -wpad-wolfssl -wpad-mbedtls -wpad-mini -wpad-basic -wpad'
+pkg_wpad_mbedtls='wpad-basic-mbedtls -wpad-basic-wolfssl -wpad-wolfssl -wpad-mbedtls -wpad-mini -wpad-basic -wpad'
 
 # Common Base Packages
 #pkg_common="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $pkg_wireless"
-pkg_common="miniupnpd_nftables ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge"
+pkg_common="miniupnpd-nftables ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge"
 #pkg_common_tiny="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq $pkg_wireless_basic $pkg_no_ppp $pkg_no_ipv6"
-pkg_common_tiny="miniupnpd_nftables ipset ip-tiny dnsmasq"
+pkg_common_tiny="miniupnpd-nftables ip-tiny dnsmasq"
 #pkg_common_wired="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $pkg_no_wireless"
 
 # System Administration Tools
@@ -52,7 +53,7 @@ pkg_hack="$pkg_security $pkg_sa_adv"
 pkg_aircrack='aircrack-ng airmon-ng grep kmod-tun pciutils procps-ng procps-ng-ps usbutils'
 
 # Network Features
-pkg_gfw='shadowsocks-libev-redir shadowsocks-libev-ss-rules smartdns'
+pkg_gfw='shadowsocks-libev-ss-redir shadowsocks-libev-ss-rules smartdns'
 pkg_vpn='wireguard-tools'
 pkg_mwan='kmod-macvlan mwan3'
 pkg_enhanced="adblock ddns-scripts $pkg_mwan"
@@ -64,7 +65,7 @@ pkg_luci='luci luci-theme-material'
 pkg_luci_zh='luci-i18n-base-zh-cn'
 
 # Feature Disablers
-pkg_no_wireless='-iwinfo -wpa-cli -iw -iw-full -wpad-basic-wolfssl -wpad-mini -wpad-basic -wpad-wolfssl -wpad -wpad-mesh-wolfssl'
+pkg_no_wireless='-iwinfo -wpa-cli -iw -iw-full -wpad-basic-wolfssl -wpad-wolfssl -wpad-mesh-wolfssl -wpad-basic-mbedtls -wpad-mbedtls -wpad-mesh-mbedtls -wpad-mini -wpad-basic -wpad'
 pkg_no_ppp='-ppp -ppp-mode-pppoe'
 pkg_no_ipv6='-ip6tables -odhcp6c -kmod-ipv6 -kmod-ip6tables -odhcpd-ipv6only'
 
@@ -130,7 +131,7 @@ scn_iot="$pkg_common $pkg_wireless $pkg_wpad $pkg_monitor $pkg_utils $pkg_sa $pk
 #   * No PPPoE/IPv6
 #   * Basic system tools only
 #   * Optimized for size and performance
-scn_travel="$pkg_common_tiny $pkg_wireless_basic $pkg_wpad_basic $pkg_gfw $pkg_vpn $pkg_no_ppp $pkg_no_ipv6"
+scn_travel="$pkg_common_tiny $pkg_wireless_basic $pkg_wpad_mbedtls $pkg_gfw $pkg_vpn $pkg_no_ppp $pkg_no_ipv6"
 
 ############### Device Profiles ###############
 # Manual Profiles (customized combinations)
@@ -198,8 +199,7 @@ build() {
     shift
     packages="$@"
     echo "PROFILE=$profile TARGET=$target PACKAGES=\"$packages\" EXTRA_IMAGE_NAME="$device" REPOS=\"$REPOS\""
-    if [ "$GEN_ONLY" != 'yes' ]
-    then
+    if [ "$GEN_ONLY" != 'yes' ]; then
         PROFILE="$profile" TARGET="$target" PACKAGES="$packages" EXTRA_IMAGE_NAME="$device" REPOS="$REPOS" FILES="files/$device" ./meta image
     fi
 }
@@ -208,45 +208,37 @@ hr() {
     echo '------------------------------------------------------------'
 }
 
-while getopts "g" option
-do
+while getopts "g" option; do
     case "$option" in
-        g) GEN_ONLY="yes" ;;
-        *) ;;
+    g) GEN_ONLY="yes" ;;
+    *) ;;
     esac
 done
-shift "$((OPTIND-1))"
+shift "$((OPTIND - 1))"
 
 devices="$@"
-if [ -z "$devices" ]
-then
-    for i in "${!profiles[@]}"
-    do
-        printf "%s %s\n" "[$((i+1))]" "${profiles[$i]}"
+if [ -z "$devices" ]; then
+    for i in "${!profiles[@]}"; do
+        printf "%s %s\n" "[$((i + 1))]" "${profiles[$i]}"
     done
     echo -en "\ndevices:\033[1A\radd: "
-    while read -r i
-    do
-        if [ "$i" = '' ]
-        then
-            if [ -z "$devices" ]
-            then
+    while read -r i; do
+        if [ "$i" = '' ]; then
+            if [ -z "$devices" ]; then
                 devices="${profiles[0]}"
                 echo -e "devices: ${devices}\033[1A\033[2K\radd: "
             fi
             break
         fi
-        devices="${profiles[$((i-1))]} $devices"
+        devices="${profiles[$((i - 1))]} $devices"
         echo -en "devices: ${devices}\033[1A\033[2K\radd: "
     done
     echo
 fi
 
-for device in $devices
-do
+for device in $devices; do
     modules="${!device}"
-    if [ -z "$modules" ]
-    then
+    if [ -z "$modules" ]; then
         echo "No device found: $device"
         exit 1
     fi
