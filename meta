@@ -13,6 +13,7 @@ DISTRO="${DISTRO:-openwrt}" # the folder where to store created files
 VERSION="${VERSION:-snapshot}" # default version
 IB_VERSION="${IB_VERSION:-$VERSION}" # ImabeBuilder version if different to distro version
 FILE_HOST="${FILE_HOST:-downloads.openwrt.org}" # download imagebuilders
+RSYNC_HOST="${RSYNC_HOST:-rsync.openwrt.org}" # download imagebuilders
 [ "$IB_VERSION" != "snapshot" ] && {
     VERSION_PATH="releases/$IB_VERSION"
 } || {
@@ -45,6 +46,10 @@ get_ib_arch() {
 }
 
 meta_setup() {
+    # Universal GPG signing key from Nitrokey 3A key
+    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/0x1D53D1877742E911.asc' | gpg --import \
+            && echo '8A8BC12F46B836C0F9CDB36F1D53D1877742E911:6:' | gpg --import-ownertrust
+
     # LEDE Build System (LEDE GnuPG key for unattended build jobs)
     curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/626471F1.asc' | gpg --import \
             && echo '54CC74307A2C6DC9CE618269CD84BCED626471F1:6:' | gpg --import-ownertrust
@@ -75,6 +80,10 @@ meta_setup() {
 
     # Public usign key for 22.03 release builds
     curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=usign/4d017e6f1ed5d616' --create-dirs \
+            -o ./usign/4d017e6f1ed5d616
+
+    # Public usign key for 24.10 release builds
+    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=usign/d310c6f2833e97f7' --create-dirs \
             -o ./usign/4d017e6f1ed5d616
 
     touch "$ROOT_DIR/.meta_setup"
@@ -130,7 +139,7 @@ download() {
         echo "remove outdated ImageBuilder files"
         find . ! -name 'sha256sums.*' -delete
         echo "download ImageBuilder"
-        rsync -av "$FILE_HOST::downloads/$TARGET_PATH/$ib_archive_name" . || exit 1
+        rsync -av "$RSYNC_HOST::downloads/$TARGET_PATH/$ib_archive_name" . || exit 1
         tar Jxf "$IB_DIR/$ib_archive_name" --strip=1 --overwrite
         cp repositories.conf repositories.conf.orig
         # add Makefile which support package_list and  manifest
