@@ -1,84 +1,193 @@
 #!/usr/bin/env bash
 set -e
 
-# profiles and targets
-mw4530r='mercury_mw4530r-v1 ath79/generic'
-glb1300='glinet_gl-b1300 ipq40xx/generic'
-# wired router
-x86_64='x86/64'
-x86='x86/generic'
-# travel router
-dir505='dlink_dir-505 ath79/generic'
-# some other models
-wdr4300='tplink_tl-wdr4300-v1 ath79/generic'
-wg3526='zbtlink_zbt-wg3526-16m ramips/mt7621'
-xr500='netgear_xr500 ipq806x/generic'
-ath10k_noct='-ath10k-firmware-qca9984-ct -kmod-ath10k-ct ath10k-firmware-qca9984 kmod-ath10k'
+# Device Models (grouped by target, alphabetically ordered within groups)
+# ath79/generic
+dev_dir505='dlink_dir-505 ath79/generic'
+dev_mw4530r='mercury_mw4530r-v1 ath79/generic'
+dev_wdr4300='tplink_tl-wdr4300-v1 ath79/generic'
 
-# packages
-wireless_basic='iwinfo wpa-cli iw -iw-full'
-wireless='iwinfo wpa-cli -iw iw-full'
+# ipq40xx/generic
+dev_glb1300='glinet_gl-b1300 ipq40xx/generic'
 
-wpad_basic='wpad-basic-wolfssl -wpad-mini -wpad-basic -wpad-wolfssl'
-wpad_basic_openssl='wpad-basic-openssl -wpad-basic-wolfssl -wpad-mini -wpad-basic -wpad-wolfssl'
-wpad='-wpad-basic-wolfssl -wpad-mini -wpad-basic wpad-wolfssl'
-wpad_openssl='-wpad-basic-wolfssl -wpad-mini -wpad-basic -wpad-wolfssl wpad-openssl'
-mesh='-wpad-basic-wolfssl -wpad-mini -wpad-basic wpad-mesh-wolfssl'
-mesh_openssl='-wpad-basic-wolfssl -wpad-mini -wpad-basic -wpad-mesh-wolfssl wpad-mesh-openssl'
+# ipq806x/generic
+dev_xr500='netgear_xr500 ipq806x/generic'
 
-no_wireless='-iwinfo -wpa-cli -iw -iw-full -wpad-basic-wolfssl -wpad-mini -wpad-basic -wpad-wolfssl -wpad -wpad-mesh-wolfssl'
+# mediatek/mt7622
+dev_ax6s='xiaomi_redmi-router-ax6s mediatek/mt7622'
 
-no_ppp='-ppp -ppp-mode-pppoe'
-no_ipv6='-ip6tables -odhcp6c -kmod-ipv6 -kmod-ip6tables -odhcpd-ipv6only'
+# ramips/mt7621
+dev_wg3526='zbtlink_zbt-wg3526-16m ramips/mt7621'
 
-common="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $wireless"
-common_tiny="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq $wireless_basic $no_ppp $no_ipv6"
-common_wired="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $no_wireless"
+# x86 platforms
+dev_x86_32='x86/generic'
+dev_x86_64='x86/64'
 
-utils='diffutils adblock curl ca-bundle netcat tcpdump iputils-arping arp-scan'
-sa="watchcat nlbwmon $utils"
-#sa_tiny="watchcat nlbwmon $utils -adblock -tcpdump -netcat -iputils-arping -arp-scan"
-sa_tiny="watchcat nlbwmon"
-mactelnet='mac-telnet-client mac-telnet-discover'
-security='nmap-ssl'
-sa_adv="$sa $mactelnet $security"
+############### Package Groups ###############
+# Basic Wireless Packages
+pkg_wireless='iwinfo wpa-cli -iw iw-full'
+pkg_wireless_basic='iwinfo wpa-cli iw -iw-full'
 
-mwan='ip-full kmod-macvlan mwan3'
+# WPAD Packages
+pkg_wpad='wpad-wolfssl -wpad-basic-wolfssl -wpad-mini -wpad-basic'
+pkg_wpad_basic='wpad-basic-wolfssl -wpad-mini -wpad-basic -wpad-wolfssl'
+pkg_wpad_mesh='wpad-mesh-wolfssl -wpad-basic-wolfssl -wpad-mini -wpad-basic'
 
-aircrack='aircrack-ng airmon-ng grep kmod-tun pciutils procps-ng procps-ng-ps usbutils'
+# Common Base Packages
+#pkg_common="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $pkg_wireless"
+pkg_common="miniupnpd_nftables ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge"
+#pkg_common_tiny="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq $pkg_wireless_basic $pkg_no_ppp $pkg_no_ipv6"
+pkg_common_tiny="miniupnpd_nftables ipset ip-tiny dnsmasq"
+#pkg_common_wired="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $pkg_no_wireless"
 
-ddns='ca-bundle ddns-scripts'
+# System Administration Tools
+pkg_utils='diffutils ca-bundle curl'
+pkg_monitor="nlbwmon etherwake watchcat"
+pkg_sa='ncat tcpdump'
+pkg_l2='iputils-arping arp-scan'
+pkg_mactelnet='mac-telnet-client mac-telnet-discover'
+pkg_sa_adv="$pkg_sa $pkg_l2 $pkg_mactelnet"
+pkg_security='nmap-ssl'
+pkg_hack="$pkg_security $pkg_sa_adv"
+pkg_aircrack='aircrack-ng airmon-ng grep kmod-tun pciutils procps-ng procps-ng-ps usbutils'
 
-#shadowsocks='shadowsocks-libev-ss-rules stubby'
-shadowsocks='shadowsocks-libev-ss-rules smartdns'
-gfw="$shadowsocks"
+# Network Features
+pkg_gfw='shadowsocks-libev-redir shadowsocks-libev-ss-rules smartdns'
+pkg_vpn='wireguard-tools'
+pkg_mwan='kmod-macvlan mwan3'
+pkg_enhanced="adblock ddns-scripts $pkg_mwan"
 
-vpn='wireguard-tools'
+# Web Interface Components
+pkg_hass='rpcd uhttpd-mod-ubus uhttpd'
+pkg_luci2='luci2-ui-base'
+pkg_luci='luci luci-theme-material'
+pkg_luci_zh='luci-i18n-base-zh-cn'
 
-routing='bird2 bird2c'
+# Feature Disablers
+pkg_no_wireless='-iwinfo -wpa-cli -iw -iw-full -wpad-basic-wolfssl -wpad-mini -wpad-basic -wpad-wolfssl -wpad -wpad-mesh-wolfssl'
+pkg_no_ppp='-ppp -ppp-mode-pppoe'
+pkg_no_ipv6='-ip6tables -odhcp6c -kmod-ipv6 -kmod-ip6tables -odhcpd-ipv6only'
 
-# web interface
-hass='rpcd uhttpd-mod-ubus uhttpd'
-luci2='luci2-ui-base'
-luci='luci luci-theme-material'
-luci_zh='luci-i18n-base-zh-cn'
+############### Usage Scenarios ###############
+# Base Scenarios
+# Primary - Full featured router
+# - Complete network stack (IPv4 + IPv6)
+# - Full wireless support with encryption
+# - UPnP for internal services
+# - QoS traffic control
+# - Advanced firewall rules
+# - VPN (WireGuard) support
+# - GFW tools (Shadowsocks)
+# - Network monitoring and diagnostics
+# - System administration tools
+# - DDNS support
+scn_primary="$pkg_common $pkg_wireless $pkg_wpad $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_enhanced"
 
-# profiles
-profiles=(mw4530r_basic mw4530r_basic_openssl mw4530r_main dir505_main dir505_main_openssl x86_main x86_64_main)
-mw4530r_basic="$mw4530r $common_tiny $sa $ddns $gfw $vpn $wpad_basic"
-#mw4530r_basic_openssl="$mw4530r $common_tiny $sa $ddns $gfw $vpn $wpad_basic_openssl -libustream-wolfssl libustream-openssl"
-mw4530r_basic_openssl="$mw4530r $common_tiny $sa_tiny $gfw $vpn $wpad_basic_openssl -libustream-wolfssl libustream-openssl"
-mw4530r_main="$mw4530r $common $sa $ddns $gfw $vpn $wpad"
-glb1300_main="$glb1300 $common $sa $ddns $gfw $vpn $wpad"
-# wired router.
-x86_main="$x86 $common_wired $sa_adv $ddns $gfw $vpn"
-x86_64_main="$x86_64 $common_wired $sa_adv $ddns $gfw $vpn"
-# travel router dir-505. dhcp wan + private wifi + vpn to office + gfw
-#dir505_main="$dir505 $common_tiny curl ca-bundle netcat tcpdump $gfw $vpn $wpad_basic"
-dir505_main="$dir505 $common_tiny $sa_tiny $gfw $vpn $wpad_basic"
-#dir505_main_openssl="$dir505 $common_tiny curl ca-bundle netcat tcpdump $gfw $vpn $wpad_basic_openssl"
-dir505_main_openssl="$dir505 $common_tiny diffutils curl ca-bundle $sa_tiny $gfw $vpn $wpad_basic_openssl"
+# AP - Access Point only
+# - Dual stack (IPv4 + IPv6) compatible
+# - Advanced wireless features
+#   * 802.11k/v/r for roaming support
+#   * WPA2/WPA3 encryption
+#   * Band steering
+#   * Client isolation option
+# - Bridge mode operation
+# - Minimal system tools for diagnostics
+# - Relies on main router/server for network services
+# - No routing features
+#   * No DHCP server
+#   * No DNS server
+#   * No NAT
+scn_ap="$pkg_wireless $pkg_wpad $pkg_utils"
 
+# Extended Scenarios
+# Office - Based on primary, optimized for office environment
+# - Differs from primary:
+#   * No PPPoE (using DHCP WAN)
+#   * No IPv6 support
+#   * Optimized for stable network
+scn_office="$pkg_common $pkg_wireless $pkg_wpad $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_no_ppp $pkg_no_ipv6"
+
+# Wired - Based on primary, for wired-only environment
+# - Differs from primary:
+#   * No wireless features
+#   * Enhanced wired capabilities
+#   * Advanced system monitoring
+#   * Additional diagnostic tools
+scn_wired="$pkg_common $pkg_no_wireless $pkg_monitor $pkg_utils $pkg_sa_adv $pkg_gfw $pkg_vpn $pkg_enhanced"
+
+# IoT - Based on primary, for IoT gateway and control
+# - Differs from primary:
+#   * IoT gateway functionality
+#   * Smart device orchestration
+#   * Home Assistant integration
+#   * Web dashboard for device control
+#   * IoT protocol support
+scn_iot="$pkg_common $pkg_wireless $pkg_wpad $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_enhanced $pkg_hass"
+
+# Travel - Minimal setup for portable use
+# - Differs from primary:
+#   * Minimal package set
+#   * No PPPoE/IPv6
+#   * Basic system tools only
+#   * Optimized for size and performance
+scn_travel="$pkg_common_tiny $pkg_wireless_basic $pkg_wpad_basic $pkg_gfw $pkg_vpn $pkg_no_ppp $pkg_no_ipv6"
+
+############### Device Profiles ###############
+# Manual Profiles (customized combinations)
+# These profiles take precedence over auto-generated ones
+prof_ax6s_office="$dev_ax6s $scn_office"
+prof_dir505_travel="$dev_dir505 $scn_travel"
+prof_glb1300_iot="$dev_glb1300 $scn_iot"
+prof_mw4530r_ap="$dev_mw4530r $scn_ap"
+prof_wg3526_office="$dev_wg3526 $scn_office"
+prof_x86_64_iot="$dev_x86_64 $scn_iot"
+
+# Auto-generated Profiles
+# Generated from device and scenario combinations
+# Will be skipped if a manual profile with same name exists
+generate_profiles() {
+    local profiles=()
+    for dev in $(compgen -v | grep '^dev_'); do
+        for scn in $(compgen -v | grep '^scn_'); do
+            # Remove prefix to get base names
+            local dev_base=${dev#dev_}
+            local scn_base=${scn#scn_}
+            local prof_name="prof_${dev_base}_${scn_base}"
+
+            # Skip if manual profile exists
+            if [ -n "${!prof_name}" ]; then
+                continue
+            fi
+
+            # Create auto profile
+            eval "$prof_name=\"\$$dev \$$scn\""
+            profiles+=("$prof_name")
+        done
+    done
+    echo "${profiles[@]}"
+}
+
+# Get manual profiles (any prof_* variable that's already defined)
+MANUAL_PROFILES=($(compgen -v | grep '^prof_'))
+
+# Generate automatic profiles
+AUTO_PROFILES=($(generate_profiles))
+
+# Combine manual and auto-generated profiles
+profiles=(${MANUAL_PROFILES[@]} ${AUTO_PROFILES[@]})
+
+# Legacy Profiles (for reference)
+#prof_mw4530r_basic="$dev_mw4530r $pkg_common_tiny $pkg_sa $pkg_ddns $pkg_gfw $pkg_vpn $pkg_wpad_basic"
+#prof_mw4530r_basic_openssl="$dev_mw4530r $pkg_common_tiny $pkg_sa_tiny $pkg_gfw $pkg_vpn $pkg_wpad_basic_openssl -libustream-wolfssl libustream-openssl"
+#prof_mw4530r_main="$dev_mw4530r $pkg_common $pkg_sa $pkg_ddns $pkg_gfw $pkg_vpn $pkg_wpad"
+#prof_glb1300_main="$dev_glb1300 $pkg_common $pkg_sa $pkg_ddns $pkg_gfw $pkg_vpn $pkg_wpad"
+#wired router.
+#prof_x86_main="$dev_x86_32 $pkg_common_wired $pkg_sa_adv $pkg_ddns $pkg_gfw $pkg_vpn"
+#prof_x86_64_main="$dev_x86_64 $pkg_common_wired $pkg_sa_adv $pkg_ddns $pkg_gfw $pkg_vpn"
+#travel router dir-505. dhcp wan + private wifi + vpn to office + gfw
+#prof_dir505_main="$dev_dir505 $pkg_common_tiny curl ca-bundle netcat tcpdump $pkg_gfw $pkg_vpn $pkg_wpad_basic"
+#prof_dir505_main_openssl="$dev_dir505 $pkg_common_tiny curl ca-bundle netcat tcpdump $pkg_gfw $pkg_vpn $pkg_wpad_basic_openssl"
+#prof_dir505_main_openssl="$dev_dir505 $pkg_common_tiny diffutils curl ca-bundle $pkg_sa_tiny $pkg_gfw $pkg_vpn $pkg_wpad_basic_openssl"
 
 build() {
     device="$1"
