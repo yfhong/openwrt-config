@@ -191,16 +191,16 @@ profiles=(${MANUAL_PROFILES[@]} ${AUTO_PROFILES[@]})
 #prof_dir505_main_openssl="$dev_dir505 $pkg_common_tiny diffutils curl ca-bundle $pkg_sa_tiny $pkg_gfw $pkg_vpn $pkg_wpad_basic_openssl"
 
 build() {
-    device="$1"
+    image="$1"
     shift
     profile="$1"
     shift
     target="$1"
     shift
     packages="$@"
-    echo "PROFILE=$profile TARGET=$target PACKAGES=\"$packages\" EXTRA_IMAGE_NAME="$device" REPOS=\"$REPOS\""
+    echo "PROFILE=$profile TARGET=$target PACKAGES=\"$packages\" EXTRA_IMAGE_NAME="$image" REPOS=\"$REPOS\""
     if [ "$GEN_ONLY" != 'yes' ]; then
-        PROFILE="$profile" TARGET="$target" PACKAGES="$packages" EXTRA_IMAGE_NAME="$device" REPOS="$REPOS" FILES="files/$device" ./meta image
+        PROFILE="$profile" TARGET="$target" PACKAGES="$packages" EXTRA_IMAGE_NAME="$image" REPOS="$REPOS" FILES="files/$image" ./meta image
     fi
 }
 
@@ -216,35 +216,36 @@ while getopts "g" option; do
 done
 shift "$((OPTIND - 1))"
 
-devices="$@"
-if [ -z "$devices" ]; then
+# Rename devices to images
+images="$@"
+if [ -z "$images" ]; then
     for i in "${!profiles[@]}"; do
         printf "%s %s\n" "[$((i + 1))]" "${profiles[$i]}"
     done
-    echo -en "\ndevices:\033[1A\radd: "
+    echo -en "\nimages:\033[1A\radd: "
     while read -r i; do
         if [ "$i" = '' ]; then
-            if [ -z "$devices" ]; then
-                devices="${profiles[0]}"
-                echo -e "devices: ${devices}\033[1A\033[2K\radd: "
+            if [ -z "$images" ]; then
+                images="${profiles[0]}"
+                echo -e "images: ${images}\033[1A\033[2K\radd: "
             fi
             break
         fi
-        devices="${profiles[$((i - 1))]} $devices"
-        echo -en "devices: ${devices}\033[1A\033[2K\radd: "
+        images="${profiles[$((i - 1))]} $images"
+        echo -en "images: ${images}\033[1A\033[2K\radd: "
     done
     echo
 fi
 
-for device in $devices; do
-    modules="${!device}"
+for image in $images; do
+    modules="${!image}"
     if [ -z "$modules" ]; then
-        echo "No device found: $device"
+        echo "No image found: $image"
         exit 1
     fi
 
     hr
 
-    echo "Build: $device"
-    build "$device" $modules
+    echo "Build: $image"
+    build "$image" $modules
 done
