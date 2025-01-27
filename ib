@@ -148,12 +148,13 @@ prof_x86_64_iot="$dev_x86_64 $scn_iot"
 # Will be skipped if a manual profile with same name exists
 generate_profiles() {
     local profiles=()
-    for dev in $(compgen -v | grep '^dev_'); do
-        for scn in $(compgen -v | grep '^scn_'); do
-            # Remove prefix to get base names
-            local dev_base=${dev#dev_}
-            local scn_base=${scn#scn_}
-            local prof_name="prof_${dev_base}_${scn_base}"
+    local devices=($(compgen -v | grep '^dev_'))
+    local scenarios=($(compgen -v | grep '^scn_'))
+
+    for dev in "${devices[@]}"; do
+        for scn in "${scenarios[@]}"; do
+            # Create profile name directly from device and scenario
+            local prof_name="prof_${dev#dev_}_${scn#scn_}"
 
             # Skip if manual profile exists
             if [ -n "${!prof_name}" ]; then
@@ -179,7 +180,7 @@ profiles=(${MANUAL_PROFILES[@]} ${AUTO_PROFILES[@]})
 
 # Legacy Profiles (for reference)
 #prof_mw4530r_basic="$dev_mw4530r $pkg_common_tiny $pkg_sa $pkg_ddns $pkg_gfw $pkg_vpn $pkg_wpad_basic"
-#prof_mw4530r_basic_openssl="$dev_mw4530r $pkg_common_tiny $pkg_sa_tiny $pkg_gfw $pkg_vpn $pkg_wpad_basic_openssl -libustream-wolfssl libustream-openssl"
+#prof_mw4530r_basic_openssl="$dev_mw4530r $pkg_common_tiny $pkg_sa_tiny $pkg_gfw $pkg_vpn $pkg_wpad_basic_openssl"
 #prof_mw4530r_main="$dev_mw4530r $pkg_common $pkg_sa $pkg_ddns $pkg_gfw $pkg_vpn $pkg_wpad"
 #prof_glb1300_main="$dev_glb1300 $pkg_common $pkg_sa $pkg_ddns $pkg_gfw $pkg_vpn $pkg_wpad"
 #wired router.
