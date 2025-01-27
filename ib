@@ -191,6 +191,26 @@ profiles=(${MANUAL_PROFILES[@]} ${AUTO_PROFILES[@]})
 #prof_dir505_main_openssl="$dev_dir505 $pkg_common_tiny curl ca-bundle netcat tcpdump $pkg_gfw $pkg_vpn $pkg_wpad_basic_openssl"
 #prof_dir505_main_openssl="$dev_dir505 $pkg_common_tiny diffutils curl ca-bundle $pkg_sa_tiny $pkg_gfw $pkg_vpn $pkg_wpad_basic_openssl"
 
+# Function to get modules from profile name
+get_modules_from_profile() {
+    local image="$1"
+    local dev_name="${image#prof_}"
+    local dev_base="${dev_name%%_*}"
+    local scn_base="${dev_name#*_}"
+
+    # Construct the variable names for device and scenario
+    local dev_var="dev_$dev_base"
+    local scn_var="scn_$scn_base"
+
+    # Check if the constructed device and scenario variables exist
+    if [ -n "${!dev_var}" ] && [ -n "${!scn_var}" ]; then
+        # Create the profile definition
+        echo "${!dev_var} ${!scn_var}"
+    else
+        echo ""
+    fi
+}
+
 build() {
     image="$1"
     shift
@@ -240,9 +260,15 @@ fi
 
 for image in $images; do
     modules="${!image}"
+
     if [ -z "$modules" ]; then
-        echo "No image found: $image"
-        exit 1
+        # Call the function to get modules from the profile name
+        modules=$(get_modules_from_profile "$image")
+
+        if [ -z "$modules" ]; then
+            echo "No image found: $image"
+            exit 1
+        fi
     fi
 
     hr
