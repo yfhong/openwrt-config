@@ -36,7 +36,7 @@ pkg_wpad_mbedtls='wpad-basic-mbedtls -wpad-basic-wolfssl -wpad-wolfssl -wpad-mbe
 
 # Common Base Packages
 #pkg_common="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $pkg_wireless"
-pkg_common="miniupnpd-nftables ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge"
+pkg_common="miniupnpd-nftables ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge openssh-sftp-server"
 #pkg_common_tiny="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq $pkg_wireless_basic $pkg_no_ppp $pkg_no_ipv6"
 pkg_common_tiny="miniupnpd-nftables ip-tiny dnsmasq"
 #pkg_common_wired="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $pkg_no_wireless"
