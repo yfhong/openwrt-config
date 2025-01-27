@@ -6,21 +6,21 @@ set -e
 
 [ -n "$DEBUG" ] && set -x && env
 
-ROOT_DIR="$PWD" # where the script is
+ROOT_DIR="$PWD"   # where the script is
 IB="imagebuilder" # search sha256sums for this string to find imagebuilder
 BUILD_KEY="${BUILD_KEY:-$ROOT_DIR/key-build}"
-DISTRO="${DISTRO:-openwrt}" # the folder where to store created files
-VERSION="${VERSION:-snapshot}" # default version
-IB_VERSION="${IB_VERSION:-$VERSION}" # ImabeBuilder version if different to distro version
+DISTRO="${DISTRO:-openwrt}"                     # the folder where to store created files
+VERSION="${VERSION:-snapshot}"                  # default version
+IB_VERSION="${IB_VERSION:-$VERSION}"            # ImabeBuilder version if different to distro version
 FILE_HOST="${FILE_HOST:-downloads.openwrt.org}" # download imagebuilders
-RSYNC_HOST="${RSYNC_HOST:-rsync.openwrt.org}" # download imagebuilders
+RSYNC_HOST="${RSYNC_HOST:-rsync.openwrt.org}"   # download imagebuilders
 [ "$IB_VERSION" != "snapshot" ] && {
     VERSION_PATH="releases/$IB_VERSION"
 } || {
     VERSION_PATH="snapshots"
 }
 TARGET_PATH="$VERSION_PATH/targets/$TARGET"
-IB_DIR="$ROOT_DIR/imagebuilder/$DISTRO/$TARGET_PATH" # where to store imagebuilders
+IB_DIR="$ROOT_DIR/imagebuilder/$DISTRO/$TARGET_PATH"     # where to store imagebuilders
 BIN_DIR="${BIN_DIR:-$ROOT_DIR/bin/$DISTRO/$TARGET_PATH}" # where to store created images
 
 mkdir -p "$ROOT_DIR/gpg"
@@ -29,7 +29,7 @@ export GNUPGHOME="$ROOT_DIR/gpg"
 
 # parse the sha256sums file to determine the ImageBuilder name
 get_ib_archive_name() {
-    if [ -e "$IB_DIR/sha256sums" ] ; then
+    if [ -e "$IB_DIR/sha256sums" ]; then
         grep -- "$IB" "$IB_DIR/sha256sums" | awk '{print $2}' | sed -e "s/*//g"
     else
         false
@@ -39,52 +39,61 @@ get_ib_archive_name() {
 # return the architecture of the ImageBuilder based on .config contents
 get_ib_arch() {
     [ -d "$IB_DIR" ] && {
-        (cd "$IB_DIR" &&
-            grep CONFIG_TARGET_ARCH_PACKAGES .config | cut -d= -f2 | tr -d \"
+        (
+            cd "$IB_DIR" &&
+                grep CONFIG_TARGET_ARCH_PACKAGES .config | cut -d= -f2 | tr -d \"
         )
     } || echo "unknown"
 }
 
 meta_setup() {
     # Universal GPG signing key from Nitrokey 3A key
-    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/0x1D53D1877742E911.asc' | gpg --import \
-            && echo '8A8BC12F46B836C0F9CDB36F1D53D1877742E911:6:' | gpg --import-ownertrust
+    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/0x1D53D1877742E911.asc' | gpg --import &&
+        echo '8A8BC12F46B836C0F9CDB36F1D53D1877742E911:6:' | gpg --import-ownertrust
 
     # LEDE Build System (LEDE GnuPG key for unattended build jobs)
-    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/626471F1.asc' | gpg --import \
-            && echo '54CC74307A2C6DC9CE618269CD84BCED626471F1:6:' | gpg --import-ownertrust
+    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/626471F1.asc' | gpg --import &&
+        echo '54CC74307A2C6DC9CE618269CD84BCED626471F1:6:' | gpg --import-ownertrust
+
+    # PGP key for 18.06 release builds
+    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/15807931.asc' | gpg --import &&
+        echo 'AD0507363D2BCE9C9E36CEC4FBCB78F015807931:6:' | gpg --import-ownertrust
 
     # PGP key for 19.07 release builds
-    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/2074BE7A.asc' | gpg --import \
-            && echo 'D9C6901F45C9B86858687DFF28A39BC32074BE7A:6:' | gpg --import-ownertrust
+    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/2074BE7A.asc' | gpg --import &&
+        echo 'D9C6901F45C9B86858687DFF28A39BC32074BE7A:6:' | gpg --import-ownertrust
 
     # PGP key for 21.02 release builds
-    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/88CA59E8.asc' | gpg --import \
-            && echo '667205E379BAF348863A5C6688CA59E88F681580:6:' | gpg --import-ownertrust
+    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/88CA59E8.asc' | gpg --import &&
+        echo '667205E379BAF348863A5C6688CA59E88F681580:6:' | gpg --import-ownertrust
 
     # PGP key for 22.03 release builds
-    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/CD54E82DADB3684D.asc' | gpg --import \
-            && echo 'BF856781A01293C8409ABE72CD54E82DADB3684D:6:' | gpg --import-ownertrust
+    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=gpg/CD54E82DADB3684D.asc' | gpg --import &&
+        echo 'BF856781A01293C8409ABE72CD54E82DADB3684D:6:' | gpg --import-ownertrust
 
     # Public usign key for unattended snapshot builds
     curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=usign/b5043e70f9a75cde' --create-dirs \
-            -o ./usign/b5043e70f9a75cde
+        -o ./usign/b5043e70f9a75cde
+
+    # Public usign key for 18.06 release builds
+    curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=usign/1035ac73cc4e59e3' --create-dirs \
+        -o ./usign/1035ac73cc4e59e3
 
     # Public usign key for 19.07 release builds
     curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=usign/f94b9dd6febac963' --create-dirs \
-            -o ./usign/f94b9dd6febac963
+        -o ./usign/f94b9dd6febac963
 
     # Public usign key for 21.02 release builds
     curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=usign/2f8b0b98e08306bf' --create-dirs \
-            -o ./usign/2f8b0b98e08306bf
+        -o ./usign/2f8b0b98e08306bf
 
     # Public usign key for 22.03 release builds
     curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=usign/4d017e6f1ed5d616' --create-dirs \
-            -o ./usign/4d017e6f1ed5d616
+        -o ./usign/4d017e6f1ed5d616
 
     # Public usign key for 24.10 release builds
     curl 'https://git.openwrt.org/?p=keyring.git;a=blob_plain;f=usign/d310c6f2833e97f7' --create-dirs \
-            -o ./usign/4d017e6f1ed5d616
+        -o ./usign/4d017e6f1ed5d616
 
     touch "$ROOT_DIR/.meta_setup"
 }
@@ -126,13 +135,13 @@ download() {
     fi
 
     echo "verified sha256sums signature."
-    if ! grep -- "$IB" sha256sums > sha256sums.small ; then
+    if ! grep -- "$IB" sha256sums >sha256sums.small; then
         die "can not find $IB file in sha256sums. Is \$IB out of date?"
     fi
 
     touch sha256sums.current
     # if missing, outdated or invalid, download again
-    if [ "$(cat sha256sums.small)" != "$(cat sha256sums.current)" ] ; then
+    if [ "$(cat sha256sums.small)" != "$(cat sha256sums.current)" ]; then
         local ib_archive_name
         ib_archive_name="$(get_ib_archive_name)"
         echo "sha256 doesn't match or ImageBuilder file wasn't downloaded yet."
@@ -149,7 +158,7 @@ download() {
 
         # check again and fail here if the file is still bad
         echo "Checking sha256sum a second time"
-        if ! sha256sum -c ./sha256sums.small ; then
+        if ! sha256sum -c ./sha256sums.small; then
             die "ImageBuilder can not be verified!"
         fi
         mv sha256sums.small sha256sums.current
@@ -158,7 +167,7 @@ download() {
         # apply patches from patches folder
         [ -d "$ROOT_DIR/patches/" ] && (
             for patch_file in $(find $ROOT_DIR/patches/ -type f); do
-                patch -p1 < "$patch_file"
+                patch -p1 <"$patch_file"
             done
         )
 
@@ -185,7 +194,7 @@ download() {
 custom_repos() {
     # ability to add custom repositories
     cp "$IB_DIR/repositories.conf.orig" "$IB_DIR/repositories.conf"
-    echo "$REPOS" >> "$IB_DIR/repositories.conf"
+    echo "$REPOS" >>"$IB_DIR/repositories.conf"
     sed -i \
         -e '/^option check_signature$/d' \
         -e "s/{{ pkg_arch }}/$(get_ib_arch)/" \
@@ -213,12 +222,13 @@ die() {
 [ "$1" != "download" ] || exit 0
 
 # run `make image` and pass variables
-(cd "$IB_DIR" &&
-make "$1" \
-    PROFILE="$PROFILE" \
-    PACKAGES="$PACKAGES" \
-    BIN_DIR="$BIN_DIR" \
-    DISABLED_SERVICES="$DISABLED_SERVICES" \
-    EXTRA_IMAGE_NAME="$EXTRA_IMAGE_NAME" \
-    FILES="$FILES"
+(
+    cd "$IB_DIR" &&
+        make "$1" \
+            PROFILE="$PROFILE" \
+            PACKAGES="$PACKAGES" \
+            BIN_DIR="$BIN_DIR" \
+            DISABLED_SERVICES="$DISABLED_SERVICES" \
+            EXTRA_IMAGE_NAME="$EXTRA_IMAGE_NAME" \
+            FILES="$FILES"
 )
