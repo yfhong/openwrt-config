@@ -5,6 +5,7 @@ set -e
 # ath79/generic
 dev_dir505='dlink_dir-505 ath79/generic'
 dev_mw4530r='mercury_mw4530r-v1 ath79/generic'
+dev_mw4530rold='mw4530r-v1 ar71xx/generic'
 dev_wdr4300='tplink_tl-wdr4300-v1 ath79/generic'
 
 # ipq40xx/generic
@@ -66,8 +67,9 @@ pkg_luci_zh='luci-i18n-base-zh-cn'
 
 # Feature Disablers
 pkg_no_wireless='-iwinfo -wpa-cli -iw -iw-full -wpad-basic-wolfssl -wpad-wolfssl -wpad-mesh-wolfssl -wpad-basic-mbedtls -wpad-mbedtls -wpad-mesh-mbedtls -wpad-mini -wpad-basic -wpad'
-pkg_no_ppp='-ppp -ppp-mode-pppoe'
+pkg_no_ppp='-ppp -ppp-mod-pppoe'
 pkg_no_ipv6='-ip6tables -odhcp6c -kmod-ipv6 -kmod-ip6tables -odhcpd-ipv6only'
+pkg_no_firewall='-firewall -iptables -ip6tables -firewall4 -iptables-zz-legacy -ip6tables-zz-legacy -iptables-nft -ip6tables-nft -nftables-json -nftables-nojson'
 
 ############### Usage Scenarios ###############
 # Base Scenarios
@@ -98,7 +100,7 @@ scn_primary="$pkg_common $pkg_wireless $pkg_wpad $pkg_monitor $pkg_utils $pkg_sa
 #   * No DHCP server
 #   * No DNS server
 #   * No NAT
-scn_ap="$pkg_wireless $pkg_wpad $pkg_utils"
+scn_ap="$pkg_wireless $pkg_wpad $pkg_utils $pkg_no_ppp $pkg_no_firewall"
 
 # Extended Scenarios
 # Office - Based on primary, optimized for office environment
