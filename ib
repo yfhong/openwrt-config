@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -e
 
+# Environment variables for cryptographic library selection
+CRYPTO_LIB="${CRYPTO_LIB:-wolfssl}" # Default to wolfssl
+WPAD_OPTION="${WPAD_OPTION:-full}"  # Default to full feature set
+
 # Device Models (grouped by target, alphabetically ordered within groups)
 # ath79/generic
 dev_dir505='dlink_dir-505 ath79/generic'
@@ -25,15 +29,80 @@ dev_x86_32='x86/generic'
 dev_x86_64='x86/64'
 
 ############### Package Groups ###############
-# Basic Wireless Packages
-pkg_wireless='iwinfo wpa-cli -iw iw-full'
-pkg_wireless_basic='iwinfo wpa-cli iw -iw-full'
+# Function to generate a package group
+# - Select one package from a list of conflicting packages with similar features.
+# - If the first argument is 'none', disable all packages in the list.
+one_or_none() {
+    local pkg_selected="$1"
+    local pkg_list="$2"
+    local pkg_group=""
+
+    # Check if the user wants to disable all packages
+    if [ "$pkg_selected" == "none" ]; then
+        for pkg in $pkg_list; do
+            pkg_group+="-${pkg} " # Disable all packages
+        done
+    else
+        for pkg in $pkg_list; do
+            if [ "$pkg" = "$pkg_selected" ]; then
+                pkg_group+="$pkg " # Include the selected package
+            else
+                pkg_group+="-${pkg} " # Disable other packages
+            fi
+        done
+    fi
+
+    echo "$pkg_group"
+}
 
 # WPAD Packages
-pkg_wpad='wpad-wolfssl -wpad-mbedtls -wpad-basic-wolfssl -wpad-basic-mbedtls -wpad-mini -wpad-basic -wpad'
-pkg_wpad_basic='wpad-basic-wolfssl -wpad-basic-mbedtls -wpad-wolfssl -wpad-mbedtls -wpad-mini -wpad-basic -wpad'
-pkg_wpad_mesh='wpad-mesh-wolfssl -wpad-mesh-mbedtls -wpad-basic-wolfssl -wpad-basic-mbedtls -wpad-wolfssl -wpad-mbedtls -wpad-mini -wpad-basic -wpad'
-pkg_wpad_mbedtls='wpad-basic-mbedtls -wpad-basic-wolfssl -wpad-wolfssl -wpad-mbedtls -wpad-mini -wpad-basic -wpad'
+# Complete WPAD package list and selected one
+# - The wpad-basic-* versions only have 802.11r and 802.11w support.
+# - The wpad-mesh-* versions only have 802.11r/w and 802.11s support.
+# - The wpad-* are the full version of wpad (meaning nothing was trimmed to
+#   reduce its size) and have 802.11k/v/r/w and 802.11s support.
+list_wpad_pkgs='wpad wpad-mini wpad-basic \
+                wpad-basic-mbedtls wpad-basic-wolfssl wpad-basic-openssl \
+                wpad-mesh-mbedtls wpad-mesh-wolfssl wpad-mesh-openssl \
+                wpad-mbedtls wpad-wolfssl wpad-openssl'
+wpad_selected=''
+
+# Determine the WPAD packages
+case "$WPAD_OPTION" in
+none)
+    wpad_selected='none'
+    ;;
+mini)
+    wpad_selected='wpad-mini'
+    ;;
+basic)
+    wpad_selected="wpad-basic-${CRYPTO_LIB}"
+    ;;
+mesh)
+    wpad_selected="wpad-mesh-${CRYPTO_LIB}"
+    ;;
+full)
+    wpad_selected="wpad-${CRYPTO_LIB}"
+    ;;
+*)
+    echo "Invalid WPAD option selected."
+    exit 1
+    ;;
+esac
+
+# Generate the WPAD package group
+pkg_wpad=$(one_or_none "$wpad_selected" "$list_wpad_pkgs")
+
+# Basic Wireless Packages
+pkg_wireless="iwinfo wpa-cli -iw iw-full $pkg_wpad"
+pkg_wireless_basic="iwinfo wpa-cli iw -iw-full $pkg_wpad"
+
+# Cryptographic library Packages
+# Complete Crypto Lib package list and selected one
+list_libustream_pkgs='libustream-mbedtls libustream-wolfssl libustream-openssl'
+libustream_selected="libustream-${CRYPTO_LIB}"
+# Generate the WPAD package group
+pkg_crypto_lib=$(one_or_none "$libustream_selected" "$list_libustream_pkgs")
 
 # Common Base Packages
 #pkg_common="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $pkg_wireless"
@@ -69,7 +138,8 @@ pkg_luci_zh='luci-i18n-base-zh-cn'
 pkg_no_wireless='-iwinfo -wpa-cli -iw -iw-full -wpad-basic-wolfssl -wpad-wolfssl -wpad-mesh-wolfssl -wpad-basic-mbedtls -wpad-mbedtls -wpad-mesh-mbedtls -wpad-mini -wpad-basic -wpad'
 pkg_no_ppp='-ppp -ppp-mod-pppoe'
 pkg_no_ipv6='-ip6tables -odhcp6c -kmod-ipv6 -kmod-ip6tables -odhcpd-ipv6only'
-pkg_no_firewall='-firewall -iptables -ip6tables -firewall4 -iptables-zz-legacy -ip6tables-zz-legacy -iptables-nft -ip6tables-nft -nftables-json -nftables-nojson'
+pkg_no_firewall='-firewall -iptables -ip6tables -firewall4 -iptables-zz-legacy -ip6tables-zz-legacy -iptables-nft -ip6tables-nft -nftables -nftables-json -nftables-nojson'
+pkg_no_routersrv='-dnsmasq -dnsmasq-full -odhcpd -odhcpd-ipv6only'
 
 ############### Usage Scenarios ###############
 # Base Scenarios
@@ -84,7 +154,7 @@ pkg_no_firewall='-firewall -iptables -ip6tables -firewall4 -iptables-zz-legacy -
 # - Network monitoring and diagnostics
 # - System administration tools
 # - DDNS support
-scn_primary="$pkg_common $pkg_wireless $pkg_wpad $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_enhanced"
+scn_primary="$pkg_common $pkg_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_enhanced"
 
 # AP - Access Point only
 # - Dual stack (IPv4 + IPv6) compatible
@@ -100,7 +170,7 @@ scn_primary="$pkg_common $pkg_wireless $pkg_wpad $pkg_monitor $pkg_utils $pkg_sa
 #   * No DHCP server
 #   * No DNS server
 #   * No NAT
-scn_ap="$pkg_wireless $pkg_wpad $pkg_utils $pkg_no_ppp $pkg_no_firewall"
+scn_ap="$pkg_wireless $pkg_crypto_lib openssh-sftp-server ca-bundle $pkg_no_ppp $pkg_no_firewall $pkg_no_routersrv"
 
 # Extended Scenarios
 # Office - Based on primary, optimized for office environment
@@ -108,7 +178,7 @@ scn_ap="$pkg_wireless $pkg_wpad $pkg_utils $pkg_no_ppp $pkg_no_firewall"
 #   * No PPPoE (using DHCP WAN)
 #   * No IPv6 support
 #   * Optimized for stable network
-scn_office="$pkg_common $pkg_wireless $pkg_wpad $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_no_ppp $pkg_no_ipv6"
+scn_office="$pkg_common $pkg_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_no_ppp $pkg_no_ipv6"
 
 # Wired - Based on primary, for wired-only environment
 # - Differs from primary:
@@ -116,7 +186,7 @@ scn_office="$pkg_common $pkg_wireless $pkg_wpad $pkg_monitor $pkg_utils $pkg_sa 
 #   * Enhanced wired capabilities
 #   * Advanced system monitoring
 #   * Additional diagnostic tools
-scn_wired="$pkg_common $pkg_no_wireless $pkg_monitor $pkg_utils $pkg_sa_adv $pkg_gfw $pkg_vpn $pkg_enhanced"
+scn_wired="$pkg_common $pkg_no_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils $pkg_sa_adv $pkg_gfw $pkg_vpn $pkg_enhanced"
 
 # IoT - Based on primary, for IoT gateway and control
 # - Differs from primary:
@@ -125,7 +195,7 @@ scn_wired="$pkg_common $pkg_no_wireless $pkg_monitor $pkg_utils $pkg_sa_adv $pkg
 #   * Home Assistant integration
 #   * Web dashboard for device control
 #   * IoT protocol support
-scn_iot="$pkg_common $pkg_wireless $pkg_wpad $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_enhanced $pkg_hass"
+scn_iot="$pkg_common $pkg_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_enhanced $pkg_hass"
 
 # Travel - Minimal setup for portable use
 # - Differs from primary:
@@ -133,7 +203,7 @@ scn_iot="$pkg_common $pkg_wireless $pkg_wpad $pkg_monitor $pkg_utils $pkg_sa $pk
 #   * No PPPoE/IPv6
 #   * Basic system tools only
 #   * Optimized for size and performance
-scn_travel="$pkg_common_tiny $pkg_wireless_basic $pkg_wpad_mbedtls $pkg_gfw $pkg_vpn $pkg_no_ppp $pkg_no_ipv6"
+scn_travel="$pkg_common_tiny $pkg_wireless $pkg_crypto_lib $pkg_gfw $pkg_vpn $pkg_no_ppp $pkg_no_ipv6"
 
 ############### Device Profiles ###############
 # Manual Profiles (customized combinations)
