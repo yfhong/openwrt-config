@@ -9,14 +9,13 @@ WPAD_OPTION="${WPAD_OPTION:-full}"  # Default to full feature set
 # ath79/generic
 dev_dir505='dlink_dir-505 ath79/generic'
 dev_mw4530r='mercury_mw4530r-v1 ath79/generic'
-dev_mw4530rold='mw4530r-v1 ar71xx/generic'
-dev_wdr4300='tplink_tl-wdr4300-v1 ath79/generic'
+#dev_mw4530rold='mw4530r-v1 ar71xx/generic'
 
 # ipq40xx/generic
 dev_glb1300='glinet_gl-b1300 ipq40xx/generic'
 
 # ipq806x/generic
-dev_xr500='netgear_xr500 ipq806x/generic'
+# dev_xr500='netgear_xr500 ipq806x/generic'
 
 # mediatek/mt7622
 dev_ax6s='xiaomi_redmi-router-ax6s mediatek/mt7622'
@@ -55,16 +54,51 @@ one_or_none() {
     echo "$pkg_group"
 }
 
+### Common Base Packages
+#
+# Cryptographic library Packages
+# Complete Crypto Lib package list and selected one
+list_libustream_pkgs='libustream-mbedtls libustream-wolfssl libustream-openssl'
+libustream_selected="libustream-${CRYPTO_LIB}"
+# Generate the WPAD package group
+pkg_crypto_lib=$(one_or_none "$libustream_selected" "$list_libustream_pkgs")
+
+# System Basic Environment Packages
+# Essential packages for secure file transfer and SSL/TLS support.
+pkg_sys_base='ca-bundle ca-certificates openssh-sftp-server'
+
+# IP Utilities
+# - Use 'pkg_iputils' for full network management capabilities.
+# - Use 'pkg_iputils_tiny' for lightweight operations in minimal environments,
+#   such as access points (AP) or devices with limited ROM.
+pkg_iputils='ipset ip-full -ip-tiny ip-bridge'
+pkg_iputils_tiny='-ipset -ip-full ip-tiny -ip-bridge'
+
+# Disable all IPv6 support packages
+# For environments that only require IPv4, helping to save space.
+pkg_no_ipv6='-ip6tables -odhcp6c -kmod-ipv6 -kmod-ip6tables -odhcpd-ipv6only'
+
+### Wireless Packages
+#
+# These functionalities are essential for devices operating as wireless devices,
+# whether as an access point (AP) in fat or fit mode, a station (STA), or an extender.
+#
+# Basic packages required for wireless connectivity and management.
+pkg_wireless='iwinfo wpa-cli -iw iw-full'
+pkg_wireless_basic='iwinfo wpa-cli iw -iw-full'
+
 # WPAD Packages
-# Complete WPAD package list and selected one
+# Complete WPAD package list and selected one.
 # - The wpad-basic-* versions only have 802.11r and 802.11w support.
 # - The wpad-mesh-* versions only have 802.11r/w and 802.11s support.
 # - The wpad-* are the full version of wpad (meaning nothing was trimmed to
 #   reduce its size) and have 802.11k/v/r/w and 802.11s support.
-list_wpad_pkgs='wpad wpad-mini wpad-basic \
+list_wpad_pkgs='\
+                wpad wpad-mini wpad-basic \
                 wpad-basic-mbedtls wpad-basic-wolfssl wpad-basic-openssl \
                 wpad-mesh-mbedtls wpad-mesh-wolfssl wpad-mesh-openssl \
-                wpad-mbedtls wpad-wolfssl wpad-openssl'
+                wpad-mbedtls wpad-wolfssl wpad-openssl\
+                '
 wpad_selected=''
 
 # Determine the WPAD packages
@@ -93,53 +127,62 @@ esac
 # Generate the WPAD package group
 pkg_wpad=$(one_or_none "$wpad_selected" "$list_wpad_pkgs")
 
-# Basic Wireless Packages
-pkg_wireless="iwinfo wpa-cli -iw iw-full $pkg_wpad"
-pkg_wireless_basic="iwinfo wpa-cli iw -iw-full $pkg_wpad"
+# Aircrack-ng Packages
+# Included for wireless security testing.
+pkg_aircrack='aircrack-ng airmon-ng kmod-tun'
 
-# Cryptographic library Packages
-# Complete Crypto Lib package list and selected one
-list_libustream_pkgs='libustream-mbedtls libustream-wolfssl libustream-openssl'
-libustream_selected="libustream-${CRYPTO_LIB}"
-# Generate the WPAD package group
-pkg_crypto_lib=$(one_or_none "$libustream_selected" "$list_libustream_pkgs")
+# Disable all wireless-related packages
+pkg_no_wireless=$(echo "$pkg_wireless $list_wpad_pkgs" | tr ' ' '\n' | sed '/^-/!s/^/-/' | tr '\n' ' ')
 
-# Common Base Packages
-#pkg_common="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $pkg_wireless"
-pkg_common="miniupnpd-nftables ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge openssh-sftp-server"
-#pkg_common_tiny="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq $pkg_wireless_basic $pkg_no_ppp $pkg_no_ipv6"
-pkg_common_tiny="miniupnpd-nftables ip-tiny dnsmasq"
-#pkg_common_wired="miniupnpd ipset ip-full -ip-tiny dnsmasq-full -dnsmasq ip-bridge $pkg_no_wireless"
-
-# System Administration Tools
-pkg_utils='diffutils ca-bundle curl'
-pkg_monitor="nlbwmon etherwake watchcat"
-pkg_sa='ncat tcpdump'
-pkg_l2='iputils-arping arp-scan'
-pkg_mactelnet='mac-telnet-client mac-telnet-discover'
-pkg_sa_adv="$pkg_sa $pkg_l2 $pkg_mactelnet"
-pkg_security='nmap-ssl'
-pkg_hack="$pkg_security $pkg_sa_adv"
-pkg_aircrack='aircrack-ng airmon-ng grep kmod-tun pciutils procps-ng procps-ng-ps usbutils'
-
-# Network Features
-pkg_gfw='shadowsocks-libev-ss-redir shadowsocks-libev-ss-rules smartdns'
-pkg_vpn='wireguard-tools'
+### Router Core Feature Related Packages
+#
+# Required for routers and gateways to manage network traffic and provide essential services.
+# These functionalities may not be necessary for devices operating as access points (AP) or servers.
+# Router core features may include:
+# - DNS server management
+# - DHCP server
+# - Multi-WAN support
+# - PPP support
+# - Firewall features
+pkg_no_dhcpd='-dnsmasq -dnsmasq-full -odhcpd -odhcpd-ipv6only'
+pkg_dns='dnsmasq-full -dnsmasq smartdns'
+pkg_dns_basic='-dnsmasq-full dnsmasq -smartdns'
+pkg_no_dns='-dnsmasq -dnsmasq-full -smartdns'
+pkg_firewall_enhanced='miniupnpd-nftables'
+pkg_no_firewall='\
+                -firewall -firewall3 -firewall4 \
+                -iptables -iptables-zz-legacy -iptables-nft \
+                -ip6tables -ip6tables-zz-legacy -ip6tables-nft \
+                -nftables -nftables-json -nftables-nojson\
+                '
 pkg_mwan='kmod-macvlan mwan3'
-pkg_enhanced="adblock ddns-scripts $pkg_mwan"
+pkg_no_ppp='-ppp -ppp-mod-pppoe'
+
+### Network Features
+#
+# These packages provide additional functionalities for network management.
+# - GFW tools are only relevant when **pkg_dns** is enabled,
+# - WireGuard is used for secure access to the private network from the internet,
+#   and DDNS scripts depend on **pkg_utils**.
+pkg_gfw='shadowsocks-libev-ss-redir shadowsocks-libev-ss-rules'
+pkg_vpn='wireguard-tools ddns-scripts'
+pkg_misc='adblock'
+
+### System Administration Tools
+#
+pkg_utils='diffutils curl'
+pkg_net_debug='ncat tcpdump'
+pkg_utils_enhanced='grep procps-ng procps-ng-ps'
+pkg_l2utils='iputils-arping arp-scan mac-telnet-client mac-telnet-discover'
+pkg_monitor='nlbwmon etherwake watchcat'
+pkg_security='nmap-ssl'
+pkg_hw='pciutils usbutils'
 
 # Web Interface Components
 pkg_hass='rpcd uhttpd-mod-ubus uhttpd'
 pkg_luci2='luci2-ui-base'
 pkg_luci='luci luci-theme-material'
 pkg_luci_zh='luci-i18n-base-zh-cn'
-
-# Feature Disablers
-pkg_no_wireless='-iwinfo -wpa-cli -iw -iw-full -wpad-basic-wolfssl -wpad-wolfssl -wpad-mesh-wolfssl -wpad-basic-mbedtls -wpad-mbedtls -wpad-mesh-mbedtls -wpad-mini -wpad-basic -wpad'
-pkg_no_ppp='-ppp -ppp-mod-pppoe'
-pkg_no_ipv6='-ip6tables -odhcp6c -kmod-ipv6 -kmod-ip6tables -odhcpd-ipv6only'
-pkg_no_firewall='-firewall -iptables -ip6tables -firewall4 -iptables-zz-legacy -ip6tables-zz-legacy -iptables-nft -ip6tables-nft -nftables -nftables-json -nftables-nojson'
-pkg_no_routersrv='-dnsmasq -dnsmasq-full -odhcpd -odhcpd-ipv6only'
 
 ############### Usage Scenarios ###############
 # Base Scenarios
@@ -154,7 +197,22 @@ pkg_no_routersrv='-dnsmasq -dnsmasq-full -odhcpd -odhcpd-ipv6only'
 # - Network monitoring and diagnostics
 # - System administration tools
 # - DDNS support
-scn_primary="$pkg_common $pkg_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_enhanced"
+scn_primary="\
+        ${pkg_crypto_lib} \
+        ${pkg_sys_base} \
+        ${pkg_iputils} \
+        ${pkg_wireless} \
+        ${pkg_wpad} \
+        ${pkg_dns} \
+        ${pkg_firewall_enhanced} \
+        ${pkg_mwan} \
+        ${pkg_gfw} \
+        ${pkg_vpn} \
+        ${pkg_misc} \
+        ${pkg_utils} \
+        ${pkg_net_debug} \
+        ${pkg_monitor}\
+        "
 
 # AP - Access Point only
 # - Dual stack (IPv4 + IPv6) compatible
@@ -170,7 +228,17 @@ scn_primary="$pkg_common $pkg_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils $
 #   * No DHCP server
 #   * No DNS server
 #   * No NAT
-scn_ap="$pkg_wireless $pkg_crypto_lib openssh-sftp-server ca-bundle $pkg_no_ppp $pkg_no_firewall $pkg_no_routersrv"
+scn_ap="\
+        ${pkg_crypto_lib} \
+        ${pkg_sys_base} \
+        ${pkg_iputils_tiny} \
+        ${pkg_wireless} \
+        ${pkg_wpad} \
+        ${pkg_no_dhcpd} \
+        ${pkg_no_dns} \
+        ${pkg_no_firewall} \
+        ${pkg_no_ppp} \
+        "
 
 # Extended Scenarios
 # Office - Based on primary, optimized for office environment
@@ -178,7 +246,23 @@ scn_ap="$pkg_wireless $pkg_crypto_lib openssh-sftp-server ca-bundle $pkg_no_ppp 
 #   * No PPPoE (using DHCP WAN)
 #   * No IPv6 support
 #   * Optimized for stable network
-scn_office="$pkg_common $pkg_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_no_ppp $pkg_no_ipv6"
+scn_office="\
+        ${pkg_crypto_lib} \
+        ${pkg_sys_base} \
+        ${pkg_iputils} \
+        ${pkg_no_ipv6} \
+        ${pkg_wireless} \
+        ${pkg_wpad} \
+        ${pkg_dns} \
+        ${pkg_firewall_enhanced} \
+        ${pkg_no_ppp} \
+        ${pkg_gfw} \
+        ${pkg_vpn} \
+        ${pkg_misc} \
+        ${pkg_utils} \
+        ${pkg_net_debug} \
+        ${pkg_monitor}\
+        "
 
 # Wired - Based on primary, for wired-only environment
 # - Differs from primary:
@@ -186,7 +270,25 @@ scn_office="$pkg_common $pkg_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils $p
 #   * Enhanced wired capabilities
 #   * Advanced system monitoring
 #   * Additional diagnostic tools
-scn_wired="$pkg_common $pkg_no_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils $pkg_sa_adv $pkg_gfw $pkg_vpn $pkg_enhanced"
+scn_wired="\
+        ${pkg_crypto_lib} \
+        ${pkg_sys_base} \
+        ${pkg_iputils} \
+        ${pkg_no_wireless} \
+        ${pkg_dns} \
+        ${pkg_firewall_enhanced} \
+        ${pkg_mwan} \
+        ${pkg_gfw} \
+        ${pkg_vpn} \
+        ${pkg_misc} \
+        ${pkg_utils} \
+        ${pkg_net_debug} \
+        ${pkg_utils_enhanced} \
+        ${pkg_l2utils} \
+        ${pkg_monitor} \
+        ${pkg_security} \
+        ${pkg_hw}\
+        "
 
 # IoT - Based on primary, for IoT gateway and control
 # - Differs from primary:
@@ -195,7 +297,23 @@ scn_wired="$pkg_common $pkg_no_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils 
 #   * Home Assistant integration
 #   * Web dashboard for device control
 #   * IoT protocol support
-scn_iot="$pkg_common $pkg_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils $pkg_sa $pkg_gfw $pkg_vpn $pkg_enhanced $pkg_hass"
+scn_iot="\
+        ${pkg_crypto_lib} \
+        ${pkg_sys_base} \
+        ${pkg_iputils} \
+        ${pkg_wireless} \
+        ${pkg_wpad} \
+        ${pkg_dns} \
+        ${pkg_firewall_enhanced} \
+        ${pkg_mwan} \
+        ${pkg_gfw} \
+        ${pkg_vpn} \
+        ${pkg_misc} \
+        ${pkg_utils} \
+        ${pkg_net_debug} \
+        ${pkg_monitor} \
+        ${pkg_hass}\
+        "
 
 # Travel - Minimal setup for portable use
 # - Differs from primary:
@@ -203,16 +321,29 @@ scn_iot="$pkg_common $pkg_wireless $pkg_crypto_lib $pkg_monitor $pkg_utils $pkg_
 #   * No PPPoE/IPv6
 #   * Basic system tools only
 #   * Optimized for size and performance
-scn_travel="$pkg_common_tiny $pkg_wireless $pkg_crypto_lib $pkg_gfw $pkg_vpn $pkg_no_ppp $pkg_no_ipv6"
+scn_travel="\
+        ${pkg_crypto_lib} \
+        ${pkg_sys_base} \
+        ${pkg_iputils_tiny} \
+        ${pkg_wireless_basic} \
+        ${pkg_wpad} \
+        ${pkg_dns} \
+        ${pkg_firewall_enhanced} \
+        ${pkg_gfw} \
+        ${pkg_vpn} \
+        ${pkg_utils} \
+        ${pkg_net_debug}\
+        "
 
 ############### Device Profiles ###############
 # Manual Profiles (customized combinations)
 # These profiles take precedence over auto-generated ones
 prof_ax6s_office="$dev_ax6s $scn_office"
 prof_dir505_travel="$dev_dir505 $scn_travel"
-prof_glb1300_iot="$dev_glb1300 $scn_iot"
+prof_glb1300_primary="$dev_glb1300 $scn_primary"
 prof_mw4530r_ap="$dev_mw4530r $scn_ap"
 prof_wg3526_office="$dev_wg3526 $scn_office"
+prof_x86_64_wired="$dev_x86_64 $scn_wired"
 prof_x86_64_iot="$dev_x86_64 $scn_iot"
 
 # Auto-generated Profiles
